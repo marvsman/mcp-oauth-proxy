@@ -44,12 +44,14 @@ func (p *GenericProvider) discoverEndpoints() error {
 
 	baseURL := fmt.Sprintf("%s://%s", parsedURL.Scheme, parsedURL.Host)
 
-	// Try different well-known paths
+	// Try different well-known paths. OpenID Connect discovery comes first: it
+	// carries the userinfo endpoint, which plain OAuth authorization-server
+	// metadata (RFC 8414) may omit (e.g. Clerk).
 	wellKnownPaths := []string{
-		"/.well-known/oauth-authorization-server" + parsedURL.Path,
-		fmt.Sprintf("%s/.well-known/oauth-authorization-server", strings.TrimSuffix(parsedURL.Path, "/")),
 		"/.well-known/openid-configuration" + parsedURL.Path,
 		fmt.Sprintf("%s/.well-known/openid-configuration", strings.TrimSuffix(parsedURL.Path, "/")),
+		"/.well-known/oauth-authorization-server" + parsedURL.Path,
+		fmt.Sprintf("%s/.well-known/oauth-authorization-server", strings.TrimSuffix(parsedURL.Path, "/")),
 	}
 
 	for _, path := range wellKnownPaths {
