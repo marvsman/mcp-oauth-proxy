@@ -166,7 +166,8 @@ func (p *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	redirectURI := fmt.Sprintf("%s%s/callback", handlerutils.GetBaseURL(r), p.routePrefix)
 
 	// Exchange code for tokens
-	tokenInfo, err := p.provider.ExchangeCodeForToken(r.Context(), code, p.clientID, p.clientSecret, redirectURI)
+	exchangeCtx := providers.WithCodeVerifier(r.Context(), getStringFromMap(authData, "upstream_code_verifier"))
+	tokenInfo, err := p.provider.ExchangeCodeForToken(exchangeCtx, code, p.clientID, p.clientSecret, redirectURI)
 	if err != nil {
 		log.Printf("Failed to exchange code for token: %v", err)
 		handlerutils.JSON(w, http.StatusBadRequest, types.OAuthError{
@@ -299,7 +300,7 @@ func (p *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			UserID:                userInfo.ID,
 			GrantID:               grantID,
 			Scope:                 authReq.Scope,
-			ExpiresAt:             time.Now().Add(time.Hour),        // 1 hour for access token
+			ExpiresAt:             time.Now().Add(time.Hour),           // 1 hour for access token
 			RefreshTokenExpiresAt: time.Now().Add(30 * 24 * time.Hour), // 30 days for refresh token
 			CreatedAt:             time.Now(),
 			Revoked:               false,

@@ -1,6 +1,8 @@
 package authorize
 
 import (
+	"golang.org/x/oauth2"
+
 	"fmt"
 	"net/http"
 	"net/url"
@@ -117,15 +119,21 @@ func (p *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Generate a random state key
 	stateKey := encryption.GenerateRandomString(32)
 
+	// PKCE towards the upstream provider (some providers, e.g. Clerk, require it
+	// even for confidential clients). The verifier is stored with the auth
+	// request and used by the callback when exchanging the upstream code.
+	upstreamVerifier := oauth2.GenerateVerifier()
+
 	// Store the auth request data in the database
 	authData := map[string]any{
-		"response_type":         authReq.ResponseType,
-		"client_id":             authReq.ClientID,
-		"redirect_uri":          authReq.RedirectURI,
-		"scope":                 authReq.Scope,
-		"state":                 authReq.State,
-		"code_challenge":        authReq.CodeChallenge,
-		"code_challenge_method": authReq.CodeChallengeMethod,
+		"response_type":          authReq.ResponseType,
+		"client_id":              authReq.ClientID,
+		"redirect_uri":           authReq.RedirectURI,
+		"scope":                  authReq.Scope,
+		"state":                  authReq.State,
+		"code_challenge":         authReq.CodeChallenge,
+		"code_challenge_method":  authReq.CodeChallengeMethod,
+		"upstream_code_verifier": upstreamVerifier,
 	}
 
 	// Add redirect parameter if present for post-auth redirect
@@ -144,11 +152,12 @@ func (p *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	redirectURI := fmt.Sprintf("%s%s/callback", handlerutils.GetBaseURL(r), p.routePrefix)
 
 	// Generate authorization URL with the provider
-	authURL := p.provider.GetAuthorizationURL(
+	authURL := p.provider.GetAuthorizationURLWithPKCE(
 		p.clientID,
 		redirectURI,
 		authReq.Scope,
 		stateKey,
+		oauth2.S256ChallengeFromVerifier(upstreamVerifier),
 	)
 
 	// Redirect to the provider's authorization URL

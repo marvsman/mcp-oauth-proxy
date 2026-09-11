@@ -135,7 +135,11 @@ func (p *GenericProvider) ExchangeCodeForToken(ctx context.Context, code, client
 		return nil, fmt.Errorf("failed to discover endpoints: %w", err)
 	}
 
-	return p.buildOAuth2Config(p.metadata.AuthorizationEndpoint, clientID, clientSecret, redirectURI, "").Exchange(ctx, code)
+	var opts []oauth2.AuthCodeOption
+	if verifier := CodeVerifierFromContext(ctx); verifier != "" {
+		opts = append(opts, oauth2.VerifierOption(verifier))
+	}
+	return p.buildOAuth2Config(p.metadata.AuthorizationEndpoint, clientID, clientSecret, redirectURI, "").Exchange(ctx, code, opts...)
 }
 
 // GetUserInfo retrieves user information using the access token
