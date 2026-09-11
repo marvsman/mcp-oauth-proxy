@@ -157,7 +157,9 @@ func (p *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		redirectURI,
 		authReq.Scope,
 		stateKey,
-		oauth2.S256ChallengeFromVerifier(upstreamVerifier),
+		// GetAuthorizationURLWithPKCE derives the S256 challenge itself
+		// (oauth2.S256ChallengeOption takes the verifier).
+		upstreamVerifier,
 	)
 
 	// Redirect to the provider's authorization URL
